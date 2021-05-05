@@ -1,0 +1,47 @@
+name: {{ .Name }}
+
+container:
+  image: {{ .Name }}
+  repository: 528451384384.dkr.ecr.us-west-2.amazonaws.com
+  cmd:
+    - "--datadog_address"
+    - "172.17.42.1:8125"
+
+resources:
+  cpu_shares: 128
+  mem_mb: 128
+
+expose:
+  - name: http
+    port: 3000
+    proto: http
+    health_check_path: /internal/health
+
+count:
+  min: 1
+  max: 1
+
+  autoscale_policy: "disabled"
+
+labels:
+  team: libraries
+  owner: prateek@segment.com
+
+# Treb only does validation that the secrets referenced exist in chamber’s ssm backend.
+# See: https://trebdocs.segment.com/configuration.html#config-providers
+#
+# config-providers:
+#   - name: "chamber"
+#     type: "chamber"
+#
+# config:
+#   stage:
+#     PASSWORD:
+#       provider: "chamber"
+#       key: "{{ .Name }}.password"
+
+# autodeploy:
+#   stage:
+#     branch: "staging"
+#   production:
+#     branch: "master"

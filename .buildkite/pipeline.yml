@@ -1,0 +1,37 @@
+steps:
+  # We run the CI in a single step to simplify the build configuration. While this can be split up and parallelized into multiple steps, this
+  # adds complexity and a majority of smaller repos do not benefit from such optimizations.
+  - label: "🧠 Everything"
+    env:
+      # "Contexts" are a set of standard secrets loaded from chamber into environment variables. You can see a full list here:
+      # https://paper.dropbox.com/doc/Buildkite-v1-User-Guide--A8NCadIodtK3qWwR5o359cPUAg-9EI0hXYSkcOb2EHotsVSD#:uid=974685769019479549157845&h2=Contexts
+      SEGMENT_CONTEXTS: "snyk,ecr"
+      # We maintain a set of standard language-specific docker images with a common base. You can see a full list here:
+      # https://paper.dropbox.com/doc/Buildkite-v1-User-Guide--A8NCadIodtK3qWwR5o359cPUAg-9EI0hXYSkcOb2EHotsVSD#:uid=484154666618022590482348&h2=Standard-Docker-Images
+      SEGMENT_BUILDKITE_IMAGE: "buildkite-agent-golang1.15"
+    # A Buildkite agent does the work of running your job. This should be v1 for most builds.
+    # https://paper.dropbox.com/doc/Buildkite-v1-User-Guide--A8NCadIodtK3qWwR5o359cPUAg-9EI0hXYSkcOb2EHotsVSD#:uid=471515735247630716621432&h2=Buildkite-Agents
+    agents:
+      queue: v1
+    commands: |
+      # We recommend using `make` commands here as much as possible to simplify local debugging.
+      echo '--- Snyk scan'
+      bk-snyk
+
+      # We vendor dependencies, so we don't need to download them on CI.
+
+      echo '--- Test Dependencies'
+      docker-compose up -d
+      # You may also want to wait for dependencies to be spun up.
+      # dockerize -wait tcp://localhost:5432 -wait tcp://localhost:9092 -timeout 1m
+
+      # note that this comment is also required to work around a bug in the BK parser for Go tests: 
+      # https://forum.buildkite.community/t/choose-a-more-unique-log-group-pattern/1152
+      echo '--- Running tests'
+      make test
+
+      echo '--- Publishing to Docker'
+      make docker-publish
+
+      echo '--- Publishing to Trebuchet'
+      treb-publish .run/*.yml
